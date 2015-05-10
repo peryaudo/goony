@@ -272,18 +272,6 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 		return
 	}
 
-	// Cache chunk size is 64MB, so it is quite enough
-	if length > 128*1024*1024 {
-		err = errors.New("payload too long")
-		return
-	}
-
-	payload := make([]byte, length-1)
-	err = readLE(c.conn, payload)
-	if err != nil {
-		return
-	}
-
 	switch idx {
 	case cmdIdxProtoHdr:
 		cmd = &cmdProtoHdr{}
@@ -329,6 +317,18 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 
 	if cmd.Idx() != int(idx) {
 		panic("command index mismatching!")
+	}
+
+	// Cache chunk size is 64MB, so it is quite enough
+	if length > 70*1024*1024 {
+		err = errors.New("payload too long")
+		return
+	}
+
+	payload := make([]byte, length-1)
+	err = readLE(c.conn, payload)
+	if err != nil {
+		return
 	}
 
 	err = cmd.Unmarshal(payload)
