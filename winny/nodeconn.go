@@ -5,7 +5,6 @@ import (
 	"crypto/rc4"
 	"errors"
 	"fmt"
-	// "io"
 	"log"
 	"net"
 	"strconv"
@@ -272,42 +271,18 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 	if err != nil {
 		return
 	}
-	/*
-		var hdr [5]byte
-		n, err := c.conn.Read(hdr[:])
-		if err != nil || n != 5 {
-			if err == nil {
-				err = errors.New("cannnot read command header")
-			}
-			return
-		}
-		length := int(hdr[0]) +
-			(int(hdr[1]) << 8) +
-			(int(hdr[2]) << 16) +
-			(int(hdr[3]) << 24)
-		idx := int(hdr[4])
-	*/
+
+	// Cache chunk size is 64MB, so it is quite enough
+	if length > 128*1024*1024 {
+		err = errors.New("payload too long")
+		return
+	}
 
 	payload := make([]byte, length-1)
 	err = readLE(c.conn, payload)
 	if err != nil {
 		return
 	}
-	/*
-		n, err = c.conn.Read(payload)
-		if err == io.EOF {
-			err = nil
-		}
-		if err != nil || n != len(payload) {
-			if err == nil {
-				err = errors.New("cannot read command body")
-			}
-			log.Println(err)
-			log.Println(len(payload))
-			return
-		}
-	*/
-	// log.Printf("payload: %#v\n", payload)
 
 	switch idx {
 	case cmdIdxProtoHdr:

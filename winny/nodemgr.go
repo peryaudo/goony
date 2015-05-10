@@ -4,10 +4,9 @@ import (
 	"errors"
 	"log"
 	"math"
-	// "math/rand"
+	"math/rand"
 	"net"
 	"runtime"
-	"runtime/debug"
 	"strconv"
 	"time"
 )
@@ -315,20 +314,18 @@ func (m *nodeMgr) manageNodeConn() {
 		}
 	}
 
-	// if rand.Intn(8) == 0 {
-	var ms runtime.MemStats
-	runtime.ReadMemStats(&ms)
-	log.Printf("up: %d + down: %d = %d, known: %d trial remain: %d goroutines: %d total/used = %f\n",
-		upstream,
-		downstream,
-		len(m.connNodes),
-		len(m.nodes),
-		m.connTrying,
-		runtime.NumGoroutine(),
-		float32(ms.TotalAlloc)/float32(ms.Alloc))
-	// }
-	runtime.GC()
-	debug.FreeOSMemory()
+	if rand.Intn(8) == 0 {
+		var ms runtime.MemStats
+		runtime.ReadMemStats(&ms)
+		log.Printf("up: %d + down: %d = %d, known: %d trial remain: %d goroutines: %d total/used = %f\n",
+			upstream,
+			downstream,
+			len(m.connNodes),
+			len(m.nodes),
+			m.connTrying,
+			runtime.NumGoroutine(),
+			float32(ms.TotalAlloc)/float32(ms.Alloc))
+	}
 
 	if upstream < 2 {
 		// Try connecting upstream nodes.
