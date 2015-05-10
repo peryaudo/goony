@@ -376,7 +376,7 @@ func (c *nodeConn) remoteIP() []byte {
 	return net.ParseIP(host).To4()
 }
 
-// Imitating infamous Winny's usage of strlen
+// Imitating Winny's infamous usage of strlen
 func strlenWorkaround(b []byte) []byte {
 	if b[0] == 0 {
 		return b[0:1]
