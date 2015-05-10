@@ -259,6 +259,7 @@ func (c *nodeConn) recvHandshake() (e *establishedConn, err error) {
 }
 
 // TODO(peryaudo): instead of directly forwarding cmdQuery, replace private IP with node's global IP.
+// TODO(peryaudo): set deadline to all the recvs
 func (c *nodeConn) recv() (cmd cmd, err error) {
 	var length uint32
 	var idx byte
@@ -319,9 +320,13 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 		panic("command index mismatching!")
 	}
 
-	// Cache chunk size is 64MB, so it is quite enough
-	if length > 70*1024*1024 {
+	if idx == cmdIdxCacheRes && length > 70*1024*1024 {
 		err = errors.New("payload too long")
+	}
+	if idx != cmdIdxCacheRes && length > 16*1024*1024 {
+		err = errors.New("payload too long")
+	}
+	if err != nil {
 		return
 	}
 
