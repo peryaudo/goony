@@ -1,3 +1,4 @@
+// Package winny provides Winny servent implementation.
 package winny
 
 import (
@@ -5,6 +6,8 @@ import (
 	"log"
 )
 
+// A Servent is an Winny servent.
+// You should specify Speed and Port while others are optional.
 type Servent struct {
 	Speed    int
 	Port     int
@@ -16,11 +19,19 @@ type Servent struct {
 	queryMgr *queryMgr
 }
 
+// ListenAndServe starts Winny servent.
+// It listens on the specified port while trying connecting other nodes.
+// You can add other nodes explicitly by using AddNode().
 func (s *Servent) ListenAndServe() (err error) {
 	s.init()
 
 	if s.Speed == 0 {
 		err = errors.New("you must specify the node speed")
+		return
+	}
+
+	if s.Port == 0 {
+		err = errors.New("you must specify the listen port")
 		return
 	}
 
@@ -71,6 +82,10 @@ func (s *Servent) init() {
 	s.queryMgr = newQueryMgr(s)
 }
 
+// AddNode adds other Winny nodes to the node list.
+// The node string must be in the encrypted form (e.g. @fc259bdf....).
+// Nodes with the private IP addresses are ignored.
+// There's no guarantee that the servent will connect to the given nodes.
 func (s *Servent) AddNode(node string) {
 	s.init()
 
@@ -79,6 +94,7 @@ func (s *Servent) AddNode(node string) {
 	}()
 }
 
+//
 func (s *Servent) Query(keyword string) <-chan *QueryResult {
 	s.init()
 
@@ -93,11 +109,8 @@ func (s *Servent) Query(keyword string) <-chan *QueryResult {
 	return query.Result
 }
 
-func (s *Servent) KeyStream() <-chan *QueryResult {
-	panic("unimplemented")
-	return nil
-}
-
+// NodeList returns the complete node list the servent has.
+// The returned strings are in the encrypted form.
 func (s *Servent) NodeList() []string {
 	ch := make(chan []string)
 	s.nodeMgr.GetNodeList <- ch

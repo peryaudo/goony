@@ -11,37 +11,38 @@ import (
 	"time"
 )
 
+// nodeMgr manages node list and connections.
+// nodeMgr listens on the servent port and tries connecting other nodes
+// to satisfy the criteria.
+// Each connection is a separated goroutine running the instance of nodeConn.
 type nodeMgr struct {
 	servent *Servent
 
+	// Send a command to nodes with matching conditions.
 	SendCmd chan *sendCmd
 
+	// Add nodes to the list.
 	AddNode     chan *cmdAddr
 	AddNodeAddr chan nodeAddr
 	AddNodeStr  chan string
-	Disconnect  chan nodeAddr
+
+	// Disconnect from the node.
+	Disconnect chan nodeAddr
+
+	// Returns complete node list in the encrypted form.
 	GetNodeList chan chan []string
 
 	established chan *establishedConn
 	closed      chan *closedConn
 
-	// Access to the maps should be synchronized
+	// Access to maps should be synchronized,
+	// so they should not be accessed directly.
 	connNodes map[nodeAddr]*nodeConn
 	nodes     map[nodeAddr]*nodeInfo
 
 	addConnTrying chan struct{}
 	subConnTrying chan struct{}
 	connTrying    int
-}
-
-type nodeInfo struct {
-	Ver      int
-	CertStr  string
-	Ddns     string
-	BbsPort  int
-	Speed    int
-	Clusters [3]string
-	IsBbs    bool
 }
 
 type establishedConn struct {

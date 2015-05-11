@@ -42,10 +42,7 @@ func nodeConnDial(nodeAddr nodeAddr, m *nodeMgr) {
 	ip := net.IP(nodeAddr.IP[:]).String()
 	port := strconv.Itoa(nodeAddr.Port)
 
-	// log.Println("connecting " + ip + ":" + port + "...")
-
 	conn, err := net.DialTimeout("tcp", ip+":"+port, 10*time.Second)
-	// conn, err := net.Dial("tcp", ip+":"+port)
 	if err != nil {
 		m.closed <- &closedConn{Addr: nodeAddr, Reason: err}
 		return
@@ -109,10 +106,9 @@ func (c *nodeConn) establish() {
 		c.IsNat = true
 	}
 
-	/* If the remote is within 20% faster or slower to the local,
-	 * acceptor is upstream and connector is downstream.
-	 * Otherwise, slower node is downstream while faster node is upstream.
-	 */
+	// If the remote is within 20% faster or slower to the local,
+	// acceptor is upstream and connector is downstream.
+	// Otherwise, slower node is downstream while faster node is upstream.
 	localSpeed := float32(c.mgr.servent.Speed)
 	remoteSpeed := float32(e.Speed.Speed)
 

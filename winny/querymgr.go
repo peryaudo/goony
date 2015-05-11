@@ -5,14 +5,15 @@ import (
 	"time"
 )
 
+type QueryResult struct {
+}
+
 type queryReq struct {
 	Keyword string
 	Result  chan *QueryResult
 }
 
-type QueryResult struct {
-}
-
+// queryMgr manages searching queries.
 type queryMgr struct {
 	servent *Servent
 
