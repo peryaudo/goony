@@ -500,7 +500,7 @@ type cmdQuery struct {
 	Keyword      string
 	Trip         [11]byte
 	Nodes        []nodeAddr
-	Keys         []fileKey
+	Keys         []FileKey
 }
 
 func (c *cmdQuery) Marshal() (b []byte, err error) {
@@ -603,7 +603,7 @@ func (c *cmdQuery) Unmarshal(b []byte) (err error) {
 	if err != nil {
 		return
 	}
-	c.Keys = make([]fileKey, keysLen)
+	c.Keys = make([]FileKey, keysLen)
 	for i := 0; i < int(keysLen); i++ {
 		err = c.Keys[i].UnmarshalStream(bs)
 		if err != nil {

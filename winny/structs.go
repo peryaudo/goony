@@ -47,7 +47,7 @@ type nodeInfo struct {
 	IsBbs    bool
 }
 
-type fileKey struct {
+type FileKey struct {
 	Node      nodeAddr
 	BbsNode   nodeAddr
 	Size      uint32
@@ -62,7 +62,7 @@ type fileKey struct {
 	KeyVer    byte
 }
 
-func (k *fileKey) MarshalStream(w io.Writer) (err error) {
+func (k *FileKey) MarshalStream(w io.Writer) (err error) {
 	k.Node.MarshalStream(w)
 	k.BbsNode.MarshalStream(w)
 	writeLE(w, k.Size)
@@ -96,7 +96,7 @@ func (k *fileKey) MarshalStream(w io.Writer) (err error) {
 	return
 }
 
-func (k *fileKey) UnmarshalStream(r io.Reader) (err error) {
+func (k *FileKey) UnmarshalStream(r io.Reader) (err error) {
 	err = k.Node.UnmarshalStream(r)
 	if err != nil {
 		return

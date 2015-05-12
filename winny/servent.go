@@ -94,19 +94,55 @@ func (s *Servent) AddNode(node string) {
 	}()
 }
 
-//
-func (s *Servent) Query(keyword string) <-chan *QueryResult {
+type queryReq struct {
+	Keyword string
+	Results chan *FileKey
+}
+
+// Search returns a channel that sends the file keys that matches the keyword.
+// If the keyword is an empty string, the channel streams all the file keys.
+func (s *Servent) Search(keyword string) (results <-chan *FileKey, quit chan<- struct{}) {
 	s.init()
 
-	query := &queryReq{
+	q := &queryReq{
 		Keyword: keyword,
-		Result:  make(chan *QueryResult)}
+		Results: make(chan *FileKey)}
 
 	go func() {
-		s.queryMgr.AddQuery <- query
+		s.queryMgr.AddQuery <- q
 	}()
 
-	return query.Result
+	qu := make(chan struct{})
+
+	go func() {
+		<-qu
+		s.queryMgr.RemoveQuery <- q.Results
+	}()
+
+	results = q.Results
+	quit = qu
+	return
+}
+
+// KeywordStream returns a channel that streams all the searching keywords.
+func (s *Servent) KeywordStream() (keywords <-chan string, quit chan<- struct{}) {
+	s.init()
+
+	k := make(chan string)
+	qu := make(chan struct{})
+
+	go func() {
+		s.queryMgr.AddKeywordStream <- k
+	}()
+
+	go func() {
+		<-qu
+		s.queryMgr.RemoveKeywordStream <- k
+	}()
+
+	keywords = k
+	quit = qu
+	return
 }
 
 // NodeList returns the complete node list the servent has.

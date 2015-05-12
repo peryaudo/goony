@@ -5,28 +5,34 @@ import (
 	"time"
 )
 
-type QueryResult struct {
-}
-
-type queryReq struct {
-	Keyword string
-	Result  chan *QueryResult
-}
-
 // queryMgr manages searching queries.
 type queryMgr struct {
 	servent *Servent
 
-	AddQuery chan *queryReq
+	AddQuery    chan *queryReq
+	RemoveQuery chan chan *FileKey
+
+	AddKeywordStream    chan chan string
+	RemoveKeywordStream chan chan string
 
 	RecvQuery chan *recvCmd // recvCmd.cmd.(type) == *cmdQuery
+
+	keys         map[[16]byte]*FileKey
+	queryChans   map[chan *FileKey]string
+	keywordChans map[chan string]struct{}
 }
 
 func newQueryMgr(s *Servent) *queryMgr {
 	return &queryMgr{
-		servent:   s,
-		AddQuery:  make(chan *queryReq),
-		RecvQuery: make(chan *recvCmd)}
+		servent:             s,
+		AddQuery:            make(chan *queryReq),
+		RemoveQuery:         make(chan chan *FileKey),
+		AddKeywordStream:    make(chan chan string),
+		RemoveKeywordStream: make(chan chan string),
+		RecvQuery:           make(chan *recvCmd),
+		keys:                make(map[[16]byte]*FileKey),
+		queryChans:          make(map[chan *FileKey]string),
+		keywordChans:        make(map[chan string]struct{})}
 }
 
 func (m *queryMgr) ListenAndServe() {
@@ -38,31 +44,59 @@ func (m *queryMgr) ListenAndServe() {
 	for {
 		select {
 		case <-spreadTick:
-			m.servent.nodeMgr.SendCmd <- &sendCmd{Direction: DirectionAll, cmd: &cmdSpread{}}
+			m.servent.nodeMgr.SendCmd <- &sendCmd{
+				Direction: DirectionAll,
+				cmd:       &cmdSpread{}}
+			log.Printf("total keys: %d\n", len(m.keys))
+
+		case q := <-m.AddQuery:
+			m.queryChans[q.Results] = q.Keyword
+
+		case ch := <-m.RemoveQuery:
+			delete(m.queryChans, ch)
+
+		case k := <-m.AddKeywordStream:
+			m.keywordChans[k] = struct{}{}
+
+		case ch := <-m.RemoveKeywordStream:
+			delete(m.keywordChans, ch)
+
 		case recvCmd := <-m.RecvQuery:
-			query := recvCmd.cmd.(*cmdQuery)
-
-			// DBG
-			if len(query.Keyword) > 0 {
-				log.Printf("Search: %s\n", query.Keyword)
-				// log.Printf("Search: %d\n", len(query.Keyword))
-			}
-			for _, key := range query.Keys {
-				log.Printf("File: %s\n", key.FileName)
-				// log.Printf("File: %d\n", len(key.FileName))
-			}
-			// DBG
-
-			for _, addr := range query.Nodes {
-				m.servent.nodeMgr.AddNodeAddr <- addr
-			}
-			for _, key := range query.Keys {
-				m.servent.nodeMgr.AddNodeAddr <- key.Node
-			}
-
-		case queryReq := <-m.AddQuery:
-			// TODO(peryaudo): add to query request list
-			queryReq = queryReq
+			m.dispatchQuery(recvCmd.cmd.(*cmdQuery))
 		}
+	}
+}
+
+func (m *queryMgr) dispatchQuery(query *cmdQuery) {
+	// Dispatch to search result channels
+	// TODO(peryaudo): conditionally dispatch to queryChans
+	for _, key := range query.Keys {
+		if m.keys[key.Hash] != nil {
+			continue
+		}
+
+		for ch, _ := range m.queryChans {
+			ch <- &key
+		}
+	}
+
+	// Dispatch to keyword stream channels
+	if len(query.Keyword) > 0 {
+		for ch, _ := range m.keywordChans {
+			ch <- query.Keyword
+		}
+	}
+
+	// Save file keys
+	for _, key := range query.Keys {
+		m.keys[key.Hash] = &key
+	}
+
+	// Add the addrs in the query to the node list
+	for _, addr := range query.Nodes {
+		m.servent.nodeMgr.AddNodeAddr <- addr
+	}
+	for _, key := range query.Keys {
+		m.servent.nodeMgr.AddNodeAddr <- key.Node
 	}
 }

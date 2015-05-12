@@ -35,8 +35,6 @@ type nodeMgr struct {
 	established chan *establishedConn
 	closed      chan *closedConn
 
-	// Access to maps should be synchronized,
-	// so they should not be accessed directly.
 	connNodes map[nodeAddr]*nodeConn
 	nodes     map[nodeAddr]*nodeInfo
 
@@ -100,7 +98,7 @@ func newNodeMgr(s *Servent) *nodeMgr {
 		// Simultaneous connection trial limit
 		addConnTrying: make(chan struct{}),
 		subConnTrying: make(chan struct{}),
-		connTrying:    4}
+		connTrying:    8}
 }
 
 func (m *nodeMgr) listen() {
@@ -165,7 +163,6 @@ func (m *nodeMgr) ListenAndServe() {
 			m.addEstablishedNode(est)
 
 		case cls := <-m.closed:
-			m.connNodes[cls.Addr] = nil
 			delete(m.connNodes, cls.Addr)
 
 		case <-m.addConnTrying:
@@ -262,7 +259,6 @@ func (m *nodeMgr) addEstablishedNode(est *establishedConn) {
 	m.connNodes[est.Addr] = est.nodeConn
 
 	prevInfo := m.nodes[est.PrevAddr]
-	m.nodes[est.PrevAddr] = nil
 	delete(m.nodes, est.PrevAddr)
 	if m.nodes[est.Addr] == nil {
 		m.nodes[est.Addr] = prevInfo
