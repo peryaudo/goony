@@ -38,6 +38,8 @@ func newQueryMgr(s *Servent) *queryMgr {
 func (m *queryMgr) ListenAndServe() {
 	// TODO(peryaudo): set proper timers and do query management
 	// TODO(peryaudo): force key TTL 1500 secs
+	// TODO(peryaudo): send query at regular interval
+	// TODO(peryaudo): process received search query
 
 	spreadTick := time.Tick(30 * time.Second)
 
@@ -45,7 +47,7 @@ func (m *queryMgr) ListenAndServe() {
 		select {
 		case <-spreadTick:
 			m.servent.nodeMgr.SendCmd <- &sendCmd{
-				Direction: DirectionAll,
+				Direction: directionAll,
 				cmd:       &cmdSpread{}}
 			log.Printf("total keys: %d\n", len(m.keys))
 
@@ -69,14 +71,16 @@ func (m *queryMgr) ListenAndServe() {
 
 func (m *queryMgr) dispatchQuery(query *cmdQuery) {
 	// Dispatch to search result channels
-	// TODO(peryaudo): conditionally dispatch to queryChans
 	for _, key := range query.Keys {
 		if m.keys[key.Hash] != nil {
 			continue
 		}
 
-		for ch, _ := range m.queryChans {
-			ch <- &key
+		for ch, keyword := range m.queryChans {
+			if len(keyword) == 0 || key.Match(keyword) {
+				k := key
+				ch <- &k
+			}
 		}
 	}
 

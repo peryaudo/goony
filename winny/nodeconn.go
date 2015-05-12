@@ -319,7 +319,7 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 	if idx == cmdIdxCacheRes && length > 70*1024*1024 {
 		err = errors.New("payload too long")
 	}
-	if idx != cmdIdxCacheRes && length > 16*1024*1024 {
+	if idx != cmdIdxCacheRes && length > 1*1024*1024 {
 		err = errors.New("payload too long")
 	}
 	if err != nil {

@@ -18,7 +18,7 @@ func main() {
 	}()
 
 	servent := winny.Servent{
-		Speed: 1000,
+		Speed: 10000,
 		Port:  4504}
 
 	go func() {
@@ -35,15 +35,20 @@ func main() {
 
 	go func() {
 		ch, _ := servent.Search("")
+		cnt := 0
 		for key := range ch {
-			log.Printf("File: %s\n", maskKeyword(key.FileName))
+			// log.Printf("File: %s\n", maskKeyword(key.FileName))
+			// log.Printf("%d File: %s\n", cnt, key.FileName)
+			log.Printf("File: %s\n", key.FileName)
+			cnt++
 		}
 	}()
 
 	go func() {
 		ch, _ := servent.KeywordStream()
 		for kw := range ch {
-			log.Printf("Keyword: %s\n", maskKeyword(kw))
+			// log.Printf("Search: %s\n", maskKeyword(kw))
+			log.Printf("Search: %s\n", kw)
 		}
 	}()
 
@@ -90,9 +95,10 @@ func writeNoderef(servent *winny.Servent) {
 
 func maskKeyword(s string) string {
 	ru := []rune(s)
-	if len(ru) <= 2 {
+	limit := 1
+	if len(ru) <= limit {
 		return s
 	} else {
-		return string(ru[0:2]) + strings.Repeat("*", len(string(ru[2:])))
+		return string(ru[0:limit]) + strings.Repeat("*", len(string(ru[limit:])))
 	}
 }

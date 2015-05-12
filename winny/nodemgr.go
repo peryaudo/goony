@@ -12,8 +12,7 @@ import (
 )
 
 // nodeMgr manages node list and connections.
-// nodeMgr listens on the servent port and tries connecting other nodes
-// to satisfy the criteria.
+// nodeMgr listens on the servent port and tries connecting other nodes to satisfy the criteria.
 // Each connection is a separated goroutine running the instance of nodeConn.
 type nodeMgr struct {
 	servent *Servent
@@ -76,9 +75,9 @@ type sendCmd struct {
 }
 
 const (
-	DirectionAll = iota
-	DirectionUp
-	DirectionDown
+	directionAll = iota
+	directionUp
+	directionDown
 )
 
 func newNodeMgr(s *Servent) *nodeMgr {
@@ -188,15 +187,15 @@ func (m *nodeMgr) selectAndSend(sendcmd *sendCmd) {
 	sent := 0
 	for _, conn := range m.connNodes {
 		switch sendcmd.Direction {
-		case DirectionAll:
+		case directionAll:
 			conn.Send(sendcmd.cmd)
 			sent++
-		case DirectionUp:
+		case directionUp:
 			if !conn.IsDownstream {
 				conn.Send(sendcmd.cmd)
 				sent++
 			}
-		case DirectionDown:
+		case directionDown:
 			if conn.IsDownstream {
 				conn.Send(sendcmd.cmd)
 				sent++
