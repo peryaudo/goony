@@ -152,3 +152,9 @@ func (s *Servent) NodeList() []string {
 	s.nodeMgr.GetNodeList <- ch
 	return <-ch
 }
+
+func (s *Servent) connNodeCnt() int {
+	ch := make(chan int)
+	s.nodeMgr.getConnNodeCnt <- ch
+	return <-ch
+}

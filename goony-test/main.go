@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"github.com/peryaudo/goony/winny"
 	"io"
 	"log"
@@ -14,7 +15,10 @@ import (
 
 func main() {
 	go func() {
-		log.Println(http.ListenAndServe("localhost:6060", nil))
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			fmt.Fprintf(w, "goony connectability test")
+		})
+		log.Println(http.ListenAndServe(":6060", nil))
 	}()
 
 	servent := winny.Servent{
@@ -34,6 +38,7 @@ func main() {
 	}()
 
 	go func() {
+		// ch, _ := servent.Search(".jpg")
 		ch, _ := servent.Search("")
 		cnt := 0
 		for key := range ch {

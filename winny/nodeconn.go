@@ -30,6 +30,7 @@ func nodeConnAccept(conn net.Conn, m *nodeMgr) {
 		mgr:          m,
 		conn:         &rc4Conn{Raw: conn},
 		IsDownstream: true}
+	copy(c.nodeAddr.IP[:], c.remoteIP())
 	c.establish()
 }
 
@@ -57,6 +58,16 @@ func nodeConnDial(nodeAddr nodeAddr, m *nodeMgr) {
 }
 
 func (c *nodeConn) Send(cmd cmd) (err error) {
+	// Special case
+	if cmdQuery, ok := cmd.(*cmdQuery); ok {
+		log.Println("send cmdQuery to ", net.IP(c.nodeAddr.IP[:]))
+
+		// Add own IP to the node list
+		localAddr := nodeAddr{Port: c.mgr.servent.Port}
+		copy(localAddr.IP[:], c.localIP())
+		cmdQuery.Nodes = append(cmdQuery.Nodes, localAddr)
+	}
+
 	payload, err := cmd.Marshal()
 	if err != nil {
 		return
@@ -341,6 +352,8 @@ func (c *nodeConn) recv() (cmd cmd, err error) {
 			err = errors.New(fmt.Sprintf("command parsing error: %v type: %T payload: %#v", err, cmd, payload))
 		}
 	}
+
+	// log.Printf("%#v\n", cmd)
 
 	// FIXME: DBG
 	if err == nil && cmd.Idx() != cmdIdxQuery {

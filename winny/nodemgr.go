@@ -17,7 +17,7 @@ import (
 type nodeMgr struct {
 	servent *Servent
 
-	// Send a command to nodes with matching conditions.
+	// Send a command to a random node with the matching condition.
 	SendCmd chan *sendCmd
 
 	// Add nodes to the list.
@@ -30,6 +30,8 @@ type nodeMgr struct {
 
 	// Returns complete node list in the encrypted form.
 	GetNodeList chan chan []string
+
+	getConnNodeCnt chan chan int
 
 	established chan *establishedConn
 	closed      chan *closedConn
@@ -76,23 +78,23 @@ type sendCmd struct {
 
 const (
 	directionAll = iota
-	directionUp
-	directionDown
+	directionRoughlyUp
 )
 
 func newNodeMgr(s *Servent) *nodeMgr {
 	return &nodeMgr{
-		servent:     s,
-		SendCmd:     make(chan *sendCmd),
-		AddNode:     make(chan *cmdAddr),
-		AddNodeAddr: make(chan nodeAddr),
-		AddNodeStr:  make(chan string),
-		Disconnect:  make(chan nodeAddr),
-		GetNodeList: make(chan chan []string),
-		established: make(chan *establishedConn),
-		closed:      make(chan *closedConn),
-		connNodes:   make(map[nodeAddr]*nodeConn),
-		nodes:       make(map[nodeAddr]*nodeInfo),
+		servent:        s,
+		SendCmd:        make(chan *sendCmd),
+		AddNode:        make(chan *cmdAddr),
+		AddNodeAddr:    make(chan nodeAddr),
+		AddNodeStr:     make(chan string),
+		Disconnect:     make(chan nodeAddr),
+		GetNodeList:    make(chan chan []string),
+		getConnNodeCnt: make(chan chan int),
+		established:    make(chan *establishedConn),
+		closed:         make(chan *closedConn),
+		connNodes:      make(map[nodeAddr]*nodeConn),
+		nodes:          make(map[nodeAddr]*nodeInfo),
 
 		// Simultaneous connection trial limit
 		addConnTrying: make(chan struct{}),
@@ -107,7 +109,9 @@ func (m *nodeMgr) listen() {
 		return
 	}
 	for {
+		// log.Println("listening...")
 		conn, err := ln.Accept()
+		// log.Println("accept!")
 		if err != nil {
 			log.Println(err)
 			return
@@ -123,6 +127,8 @@ func (m *nodeMgr) ListenAndServe() {
 	manageTick := time.Tick(4 * time.Second)
 
 	for {
+		// Be aware that long blocking in this loop may lead to deadlock.
+
 		select {
 		case <-manageTick:
 			m.manageNodeConn()
@@ -158,10 +164,14 @@ func (m *nodeMgr) ListenAndServe() {
 			}
 			listChan <- nodeStrs
 
+		case ch := <-m.getConnNodeCnt:
+			ch <- len(m.connNodes)
+
 		case est := <-m.established:
 			m.addEstablishedNode(est)
 
 		case cls := <-m.closed:
+			// log.Println(net.IP(cls.Addr.IP[:]), " ", cls.Reason)
 			delete(m.connNodes, cls.Addr)
 
 		case <-m.addConnTrying:
@@ -184,26 +194,31 @@ func (m *nodeMgr) selectAndSend(sendcmd *sendCmd) {
 		return
 	}
 
-	sent := 0
+	all := make([]*nodeConn, 0)
+	up := make([]*nodeConn, 0)
+	down := make([]*nodeConn, 0)
 	for _, conn := range m.connNodes {
-		switch sendcmd.Direction {
-		case directionAll:
-			conn.Send(sendcmd.cmd)
-			sent++
-		case directionUp:
-			if !conn.IsDownstream {
-				conn.Send(sendcmd.cmd)
-				sent++
-			}
-		case directionDown:
-			if conn.IsDownstream {
-				conn.Send(sendcmd.cmd)
-				sent++
-			}
+		all = append(all, conn)
+		if conn.IsDownstream {
+			down = append(down, conn)
+		} else {
+			up = append(up, conn)
 		}
 	}
 
-	// log.Printf("sent command: %#v to %d nodes\n", sendcmd.cmd, sent)
+	switch sendcmd.Direction {
+	case directionAll:
+		if len(all) > 0 {
+			all[rand.Intn(len(all))].Send(sendcmd.cmd)
+		}
+
+	case directionRoughlyUp:
+		if len(up) > 0 {
+			up[rand.Intn(len(up))].Send(sendcmd.cmd)
+		} else if len(down) > 0 {
+			down[rand.Intn(len(down))].Send(sendcmd.cmd)
+		}
+	}
 }
 
 func (m *nodeMgr) addNode(c *cmdAddr) {
@@ -400,6 +415,7 @@ func (m *nodeMgr) manageNodeList() {
 }
 
 func isPrivateIP(ip []byte) bool {
+	// return false
 	if ip[0] == 192 && ip[1] == 168 {
 		return true
 	}
